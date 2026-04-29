@@ -46,7 +46,7 @@
                     </h2>
                     
                     <div class="mb-6 pb-6 border-b border-blue-50">
-                        <label class="block text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wider">명단 업로드 (A: 동아리명 / B: 인원수)</label>
+                        <label class="block text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wider">명단 업로드 및 백업 복구 (다운로드한 엑셀도 가능)</label>
                         <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" 
                             class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-full p-1 mb-2"
                         />
@@ -313,14 +313,55 @@
             reader.onload = async function(e) {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
                 const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+                if (json.length === 0) return;
+
+                const headers = json[0];
                 let newData = {};
-                json.forEach(row => {
-                    const name = row[0]; const total = parseInt(row[1]);
-                    if (name && !isNaN(total)) newData[name] = { total, attendees: [] };
-                });
-                window.clubData = newData;
-                await saveData();
-                window.showToast("명단이 등록되었습니다.");
+
+                // 백업된 엑셀 파일인지 확인 (출석인원, 이름 헤더가 있는지)
+                if (headers.includes("출석인원") && headers.includes("이름")) {
+                    for (let i = 1; i < json.length; i++) {
+                        const row = json[i];
+                        const clubName = row[0];
+                        const total = parseInt(row[1]);
+                        const attName = row[4];
+                        const gender = row[5];
+                        const age = row[6];
+                        const date = row[7];
+                        const time = row[8];
+
+                        if (!clubName || isNaN(total)) continue;
+
+                        if (!newData[clubName]) {
+                            newData[clubName] = { total: total, attendees: [] };
+                        }
+
+                        // 출석자가 있는 경우 (이름이 '-' 가 아님)
+                        if (attName && attName !== "-") {
+                            const dateTimeStr = `${date} ${time}`;
+                            newData[clubName].attendees.push({
+                                name: attName,
+                                gender: gender,
+                                age: age,
+                                time: dateTimeStr,
+                                timestamp: new Date(dateTimeStr.replace(' ', 'T')).getTime() || Date.now()
+                            });
+                        }
+                    }
+                    window.clubData = newData;
+                    await saveData();
+                    window.showToast("기존 데이터 복구 완료!");
+                } else {
+                    // 일반 명단 업로드 처리
+                    json.forEach((row, idx) => {
+                        if (idx === 0 && row[0] === "동아리명") return; // 헤더 건너뛰기
+                        const name = row[0]; const total = parseInt(row[1]);
+                        if (name && !isNaN(total)) newData[name] = { total, attendees: [] };
+                    });
+                    window.clubData = newData;
+                    await saveData();
+                    window.showToast("새 명단이 등록되었습니다.");
+                }
                 document.getElementById('excelFile').value = '';
             };
             reader.readAsArrayBuffer(file);
