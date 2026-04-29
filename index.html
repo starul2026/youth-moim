@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>동아리 출석체크 시스템 (실시간 클라우드)</title>
+    <title>동아리 출석체크 시스템 (보안 강화형)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- SheetJS (Excel 처리) -->
@@ -14,6 +14,8 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
         .click-scale:active { transform: scale(0.98); }
+        /* 비밀번호 입력 모달 애니메이션 */
+        .modal-bg { background-color: rgba(0, 0, 0, 0.5); }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800 p-4 md:p-8">
@@ -22,8 +24,8 @@
         
         <!-- 헤더 영역 -->
         <div class="text-center pb-6 border-b border-slate-200">
-            <!-- 제목 클릭 시 관리자 모드 토글 (테스트를 위해 팝업창 없이 즉시 전환) -->
-            <h1 onclick="toggleAdminMode()" class="text-3xl font-bold text-slate-900 mb-2 cursor-pointer hover:opacity-80 transition-opacity select-none" title="관리자 모드">
+            <!-- 제목 클릭 시 관리자 모드 진입 시도 -->
+            <h1 onclick="openAdminAuth()" class="text-3xl font-bold text-slate-900 mb-2 cursor-pointer hover:opacity-80 transition-opacity select-none" title="관리자 모드">
                 📋 동아리 출석체크
             </h1>
             <p id="subTitle" class="text-slate-500">본인의 동아리를 선택하고 출석을 완료해주세요.</p>
@@ -37,28 +39,40 @@
 
         <div id="mainLayout" class="flex justify-center mt-6 transition-all duration-500">
             <div id="leftCol" class="w-full max-w-md space-y-6">
-                <!-- 1. 명단 업로드 (관리자 전용 - 번호 제거) -->
+                
+                <!-- 1. 명단 업로드 및 설정 (관리자 전용) -->
                 <div id="adminSec1" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-blue-100 ring-4 ring-blue-50/50">
-                    <h2 class="text-lg font-bold mb-4 text-blue-700 flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
-                        명단 업로드 (관리자)
+                    <h2 class="text-lg font-bold mb-4 text-blue-700 flex items-center justify-between">
+                        <span>⚙️ 관리자 설정</span>
+                        <button onclick="toggleAdminMode()" class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-lg hover:bg-slate-200">종료</button>
                     </h2>
-                    <div class="mb-4">
-                        <label class="block text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wider">엑셀 파일 (A열: 동아리명 / B열: 인원수)</label>
+                    
+                    <!-- 명단 업로드 -->
+                    <div class="mb-6 pb-6 border-b border-blue-50">
+                        <label class="block text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wider">명단 업로드 (A: 동아리명 / B: 인원수)</label>
                         <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" 
-                            class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-full p-1"
+                            class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-full p-1 mb-2"
                         />
+                        <button onclick="downloadSample()" class="text-xs text-blue-600 hover:text-blue-800 underline underline-offset-4">양식 샘플 다운로드</button>
                     </div>
-                    <button onclick="downloadSample()" class="text-sm text-blue-600 hover:text-blue-800 underline underline-offset-4">양식 샘플 다운로드</button>
+
+                    <!-- 비밀번호 변경 -->
+                    <div>
+                        <label class="block text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wider">관리자 비밀번호 변경</label>
+                        <div class="flex gap-2">
+                            <input type="password" id="newAdminPw" placeholder="새 비밀번호" class="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500">
+                            <button onclick="changeAdminPassword()" class="bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors">변경</button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- 2. 출석 체크 섹션 (번호 제거) -->
+                <!-- 2. 출석 체크 섹션 -->
                 <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-100">
                     <h2 class="text-xl font-bold mb-6">출석 체크</h2>
                     <div class="space-y-5">
                         <div>
                             <label class="block text-sm font-semibold text-slate-700 mb-1.5">동아리 선택</label>
-                            <select id="clubSelect" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:bg-slate-50 disabled:cursor-not-allowed">
+                            <select id="clubSelect" class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:bg-slate-50 disabled:cursor-not-allowed appearance-none bg-no-repeat bg-right" style="background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23cbd5e1%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C/polyline%3E%3C/svg%3E'); background-position: right 12px center; background-size: 18px;">
                                 <option value="">명단을 먼저 업로드해주세요</option>
                             </select>
                         </div>
@@ -70,15 +84,15 @@
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-3">성별</label>
                                 <div class="flex gap-4">
-                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="gender" value="남자" class="w-4 h-4 accent-blue-600" disabled> 남자</label>
-                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="gender" value="여자" class="w-4 h-4 accent-pink-500" disabled> 여자</label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer group"><input type="radio" name="gender" value="남자" class="w-4 h-4 accent-blue-600" disabled> <span class="group-hover:text-blue-600 transition-colors">남자</span></label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer group"><input type="radio" name="gender" value="여자" class="w-4 h-4 accent-pink-500" disabled> <span class="group-hover:text-pink-500 transition-colors">여자</span></label>
                                 </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-3">나이</label>
                                 <div class="flex flex-col gap-3">
-                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="age" value="19~24세" class="w-4 h-4 accent-indigo-600" disabled> 19세~24세</label>
-                                    <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="radio" name="age" value="25~39세" class="w-4 h-4 accent-indigo-600" disabled> 25세~39세</label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer group"><input type="radio" name="age" value="19~24세" class="w-4 h-4 accent-indigo-600" disabled> <span class="group-hover:text-indigo-600 transition-colors">19세~24세</span></label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer group"><input type="radio" name="age" value="25~39세" class="w-4 h-4 accent-indigo-600" disabled> <span class="group-hover:text-indigo-600 transition-colors">25세~39세</span></label>
                                 </div>
                             </div>
                         </div>
@@ -87,28 +101,36 @@
                 </div>
             </div>
 
-            <!-- 3. 대시보드 (관리자 전용 - 번호 제거) -->
+            <!-- 3. 대시보드 (관리자 전용) -->
             <div id="adminSec3" class="hidden md:col-span-2 space-y-6 ml-0 md:ml-6">
                 <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-100 min-h-full">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-xl font-bold flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                            출석 현황 (관리자)
-                        </h2>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <h2 class="text-xl font-bold flex items-center gap-2">📊 실시간 현황</h2>
                         <button onclick="exportToExcel()" class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold py-2.5 px-4 rounded-xl transition-all flex items-center shadow-md click-scale">
                             결과 엑셀 다운로드
                         </button>
                     </div>
                     <div id="dashboard" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <div class="col-span-full text-center py-20 text-slate-400 border-2 border-dashed border-slate-100 rounded-3xl font-medium">
-                            관리자 모드에서 명단을 업로드해주세요.
-                        </div>
+                        <div class="col-span-full text-center py-20 text-slate-400 border-2 border-dashed border-slate-100 rounded-3xl">데이터가 없습니다.</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- 비밀번호 확인 모달 -->
+    <div id="authModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 modal-bg">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <h3 class="text-lg font-bold mb-4">관리자 인증</h3>
+            <input type="password" id="adminAuthPw" placeholder="비밀번호를 입력하세요" class="w-full border border-slate-300 rounded-xl p-3 mb-4 outline-none focus:ring-2 focus:ring-blue-500" onkeypress="if(event.key === 'Enter') checkAdminAuth()">
+            <div class="flex gap-2">
+                <button onclick="closeAdminAuth()" class="flex-1 bg-slate-100 text-slate-600 font-bold py-3 rounded-xl hover:bg-slate-200">취소</button>
+                <button onclick="checkAdminAuth()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 알림 -->
     <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 px-8 py-4 rounded-2xl shadow-2xl text-white opacity-0 pointer-events-none transition-all duration-300 z-50 font-bold"></div>
 
     <script type="module">
@@ -116,7 +138,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 파이어베이스 설정 (이미 입력하신 정보)
+        // 파이어베이스 설정
         const firebaseConfig = {
             apiKey: "AIzaSyAXEKmFKOVNB8cZank9khUfLQODzBUhBlM",
             authDomain: "attendance-check-fa0cb.firebaseapp.com",
@@ -127,9 +149,10 @@
             measurementId: "G-C9QL4VH85K"
         };
 
-        const appId = 'club-attendance-final-v2';
+        const appId = 'club-attendance-pro-v3';
         let app, auth, db, user = null;
         window.clubData = {};
+        window.adminPassword = "admin"; // 초기 기본 비밀번호
         window.isAdmin = false;
 
         async function init() {
@@ -141,7 +164,7 @@
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if (u) {
-                        updateCloudStatus("🟢 실시간 연동 활성화", "green");
+                        updateCloudStatus("🟢 실시간 연동 중", "green");
                         syncData();
                     }
                 });
@@ -154,7 +177,9 @@
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'attendance_storage', 'global_state');
             onSnapshot(docRef, (snapshot) => {
                 if (snapshot.exists()) {
-                    window.clubData = snapshot.data().clubData || {};
+                    const data = snapshot.data();
+                    window.clubData = data.clubData || {};
+                    window.adminPassword = data.adminPassword || "admin";
                     updateUI();
                 }
             });
@@ -163,7 +188,10 @@
         async function saveData() {
             if (!user) return;
             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'attendance_storage', 'global_state');
-            await setDoc(docRef, { clubData: window.clubData });
+            await setDoc(docRef, { 
+                clubData: window.clubData,
+                adminPassword: window.adminPassword
+            });
         }
 
         function updateCloudStatus(text, color) {
@@ -171,27 +199,72 @@
             document.getElementById('cloudDot').className = `w-2 h-2 rounded-full ${color === 'green' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`;
         }
 
-        window.toggleAdminMode = function() {
-            window.isAdmin = !window.isAdmin;
-            const subTitle = document.getElementById('subTitle');
-            const cloudStatus = document.getElementById('cloudStatus');
-            
+        // --- 관리자 인증 로직 ---
+
+        window.openAdminAuth = function() {
             if (window.isAdmin) {
-                document.getElementById('mainLayout').className = "grid grid-cols-1 md:grid-cols-3 mt-6 transition-all duration-500";
-                document.getElementById('adminSec1').classList.remove('hidden');
-                document.getElementById('adminSec3').classList.remove('hidden');
-                subTitle.innerHTML = "관리자 모드 활성화됨 <span class='text-blue-500'>(제목 클릭 시 종료)</span>";
-                cloudStatus.classList.remove('hidden');
-                window.showToast("관리자 모드로 전환되었습니다.");
+                window.toggleAdminMode(); // 이미 관리자면 바로 토글
             } else {
-                document.getElementById('mainLayout').className = "flex justify-center mt-6 transition-all duration-500";
-                document.getElementById('adminSec1').classList.add('hidden');
-                document.getElementById('adminSec3').classList.add('hidden');
-                subTitle.textContent = "본인의 동아리를 선택하고 출석을 완료해주세요.";
-                cloudStatus.classList.add('hidden');
-                window.showToast("관리자 모드가 종료되었습니다.");
+                document.getElementById('authModal').classList.remove('hidden');
+                document.getElementById('adminAuthPw').focus();
             }
         }
+
+        window.closeAdminAuth = function() {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('adminAuthPw').value = '';
+        }
+
+        window.checkAdminAuth = function() {
+            const pw = document.getElementById('adminAuthPw').value;
+            if (pw === window.adminPassword) {
+                window.isAdmin = true;
+                window.updateUILayout();
+                window.closeAdminAuth();
+                window.showToast("관리자 인증 성공");
+            } else {
+                window.showToast("비밀번호가 틀렸습니다.", "error");
+            }
+        }
+
+        window.changeAdminPassword = async function() {
+            const newPw = document.getElementById('newAdminPw').value;
+            if (newPw.length < 2) {
+                window.showToast("비밀번호는 최소 2자 이상이어야 합니다.", "error");
+                return;
+            }
+            window.adminPassword = newPw;
+            await saveData();
+            document.getElementById('newAdminPw').value = '';
+            window.showToast("관리자 비밀번호가 변경되었습니다.");
+        }
+
+        window.toggleAdminMode = function() {
+            window.isAdmin = !window.isAdmin;
+            window.updateUILayout();
+            window.showToast(window.isAdmin ? "관리자 모드 활성화" : "관리자 모드 종료");
+        }
+
+        window.updateUILayout = function() {
+            const subTitle = document.getElementById('subTitle');
+            const adminSec1 = document.getElementById('adminSec1');
+            const adminSec3 = document.getElementById('adminSec3');
+            const mainLayout = document.getElementById('mainLayout');
+            
+            if (window.isAdmin) {
+                mainLayout.className = "grid grid-cols-1 md:grid-cols-3 mt-6 transition-all duration-500";
+                adminSec1.classList.remove('hidden');
+                adminSec3.classList.remove('hidden');
+                subTitle.innerHTML = "관리자 모드 활성화됨 <span class='text-blue-500'>(제목 클릭 시 종료)</span>";
+            } else {
+                mainLayout.className = "flex justify-center mt-6 transition-all duration-500";
+                adminSec1.classList.add('hidden');
+                adminSec3.classList.add('hidden');
+                subTitle.textContent = "본인의 동아리를 선택하고 출석을 완료해주세요.";
+            }
+        }
+
+        // --- 출석 로직 ---
 
         document.getElementById('excelFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -207,7 +280,7 @@
                 });
                 window.clubData = newData;
                 await saveData();
-                window.showToast("명단 등록 완료!");
+                window.showToast("새 명단 등록 완료!");
                 document.getElementById('excelFile').value = '';
             };
             reader.readAsArrayBuffer(file);
@@ -218,12 +291,15 @@
             const name = document.getElementById('userName').value.trim();
             const gender = document.querySelector('input[name="gender"]:checked')?.value;
             const age = document.querySelector('input[name="age"]:checked')?.value;
-            if (!clubName || !name || !gender || !age) { window.showToast("모든 항목을 입력해주세요.", "error"); return; }
+            if (!clubName || !name || !gender || !age) { window.showToast("모든 항목을 선택/입력해주세요.", "error"); return; }
+            
             const club = window.clubData[clubName];
             if (club.attendees.some(a => a.name === name)) { window.showToast("이미 출석한 이름입니다.", "error"); return; }
+            
             const now = new Date();
-            const time = `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-            club.attendees.push({ name, gender, age, time });
+            const timeStr = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            club.attendees.push({ name, gender, age, time: timeStr });
+            
             document.getElementById('userName').value = '';
             document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
             await saveData();
@@ -233,13 +309,14 @@
         window.deleteAttendee = async function(clubName, attendeeName) {
             window.clubData[clubName].attendees = window.clubData[clubName].attendees.filter(a => a.name !== attendeeName);
             await saveData();
-            window.showToast("출석 기록이 삭제되었습니다.");
+            window.showToast("기록 삭제 완료");
         }
 
         function updateUI() {
             const select = document.getElementById('clubSelect');
             const dashboard = document.getElementById('dashboard');
             const curVal = select.value;
+            
             select.innerHTML = '<option value="">동아리를 선택하세요</option>';
             Object.keys(window.clubData).forEach(c => {
                 const opt = document.createElement('option');
@@ -247,10 +324,12 @@
                 select.appendChild(opt);
             });
             if (curVal && window.clubData[curVal]) select.value = curVal;
+            
             const hasClubs = Object.keys(window.clubData).length > 0;
             document.getElementById('userName').disabled = !hasClubs;
             document.getElementById('submitBtn').disabled = !hasClubs;
             document.querySelectorAll('input[type="radio"]').forEach(r => r.disabled = !hasClubs);
+            
             dashboard.innerHTML = '';
             for (const [name, data] of Object.entries(window.clubData)) {
                 const count = data.attendees.length;
@@ -274,24 +353,47 @@
 
         window.exportToExcel = function() {
             if (Object.keys(window.clubData).length === 0) return;
-            const rows = [["동아리명", "총인원", "출석인원", "과반수", "19-24(남)", "19-24(여)", "25-39(남)", "25-39(여)", "상세명단"]];
-            for (const [name, data] of Object.entries(window.clubData)) {
-                let m1=0, f1=0, m2=0, f2=0;
-                data.attendees.forEach(a => {
-                    if(a.age==='19~24세' && a.gender==='남자') m1++; else if(a.age==='19~24세' && a.gender==='여자') f1++;
-                    else if(a.age==='25~39세' && a.gender==='남자') m2++; else if(a.age==='25~39세' && a.gender==='여자') f2++;
-                });
-                rows.push([name, data.total, data.attendees.length, data.attendees.length > (data.total/2) ? "O" : "X", m1, f1, m2, f2, data.attendees.map(a => `${a.name}(${a.gender},${a.age},${a.time})`).join(', ')]);
+            
+            // 엑셀 헤더 설정
+            const rows = [["동아리명", "총인원", "출석인원", "과반수 확인", "이름", "성별", "나이", "날짜", "시간"]];
+            
+            for (const [clubName, data] of Object.entries(window.clubData)) {
+                const count = data.attendees.length;
+                const isMajority = count > (data.total / 2) ? "O" : "X";
+                
+                if (count === 0) {
+                    // 출석자 없는 동아리 정보 한 행 기록
+                    rows.push([clubName, data.total, 0, "X", "-", "-", "-", "-", "-"]);
+                } else {
+                    // 출석자별로 한 행씩 기록
+                    data.attendees.forEach(att => {
+                        const [date, time] = att.time.split(' ');
+                        rows.push([
+                            clubName, 
+                            data.total, 
+                            count, 
+                            isMajority, 
+                            att.name, 
+                            att.gender, 
+                            att.age, 
+                            date, 
+                            time
+                        ]);
+                    });
+                }
             }
-            const ws = XLSX.utils.aoa_to_sheet(rows); const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "출석현황");
-            XLSX.writeFile(wb, `출석결과_${new Date().toLocaleDateString().replace(/\. /g,'-').replace('.','')}.xlsx`);
+            
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "출석결과상세");
+            const filename = `출석결과_${new Date().toLocaleDateString()}.xlsx`;
+            XLSX.writeFile(wb, filename);
         }
 
         window.downloadSample = function() {
-            const ws = XLSX.utils.aoa_to_sheet([["동아리명", "인원수"], ["축구부", 20], ["댄스부", 12]]);
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "샘플");
-            XLSX.writeFile(wb, "양식_샘플.xlsx");
+            const ws = XLSX.utils.aoa_to_sheet([["동아리명", "총인원"], ["코딩클럽", 20], ["테니스부", 12]]);
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "양식");
+            XLSX.writeFile(wb, "동아리명단_양식.xlsx");
         }
 
         window.showToast = function(msg, type='success') {
@@ -302,8 +404,6 @@
         }
 
         init();
-        // 초기에는 연동 상태 배지 숨김
-        document.getElementById('cloudStatus').classList.add('hidden');
     </script>
 </body>
 </html>
