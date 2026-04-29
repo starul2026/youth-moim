@@ -14,7 +14,7 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
         .click-scale:active { transform: scale(0.98); }
-        .modal-bg { background-color: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); }
+        .modal-bg { background-color: rgba(0, 0, 0, 0.5); }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800 p-4 md:p-8">
@@ -70,7 +70,7 @@
                     </div>
                 </div>
 
-                <!-- 2. 출석 체크 폼 (일반 유저용 - 관리자 모드 시 숨김 처리됨) -->
+                <!-- 2. 출석 체크 폼 -->
                 <div id="userSec2" class="bg-white p-6 rounded-2xl shadow-md border border-slate-100 transition-all duration-500">
                     <h2 class="text-xl font-bold mb-6">출석 체크</h2>
                     <div class="space-y-5">
@@ -180,8 +180,8 @@
             measurementId: "G-C9QL4VH85K"
         };
 
-        // 회원님의 진짜 데이터가 들어있는 v2 방으로 연결!!!
-        const appId = 'club-attendance-final-v2'; 
+        // 중요: 회원님의 실제 데이터가 있는 v2 경로입니다.
+        const appId = 'club-attendance-final-v2';
         
         let app, auth, db, user = null;
         window.clubData = {};
